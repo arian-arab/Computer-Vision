@@ -2,13 +2,12 @@
 Simple examples for image generation using autoencoders
 
 ## Variational Autoencoders
-![image](https://github.com/user-attachments/assets/c887f1b2-f929-4325-8551-db55a0c326e1)
+![image](https://github.com/user-attachments/assets/ddedacb9-88fa-4d6e-8a1a-4a43a9ace912)
 
 
-![image](https://github.com/user-attachments/assets/df497ee7-3e8c-4a29-8aec-f01f5184e550)
 
 ## Conditional Variational Autoencoder
+![image](https://github.com/user-attachments/assets/22ec6a82-0160-46b1-b9df-fd07532f2b2b)
 
-![image](https://github.com/user-attachments/assets/cd904e73-db22-4b4f-ac68-5eea681a3f81)
+![image](https://github.com/user-attachments/assets/49c6740d-e640-45f8-8dfa-b329615cec1c)
 
-![image](https://github.com/user-attachments/assets/236dac36-93f1-4b9f-8336-61ebd5f75ca7)
