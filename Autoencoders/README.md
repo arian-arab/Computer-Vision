@@ -1,6 +1,7 @@
-# Variational-Autoencoder
-Simple examples for image generation using variational autoencoders
+# Autoencoder
+Simple examples for image generation using autoencoders
 
+## Variational Autoencoders
 ![image](https://github.com/user-attachments/assets/c887f1b2-f929-4325-8551-db55a0c326e1)
 
 
