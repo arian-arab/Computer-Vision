@@ -8,3 +8,4 @@ This repository contains implementations of various computer vision algorithms.
 ## 4 - GANs
 ## 5 - Autoencoders
 ## 6 - Diffusion Models
+## 7 - Computational Pathology
