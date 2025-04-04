@@ -7,7 +7,7 @@
 
 ### Conditional GAN for mnist digits:
 
-![image](https://github.com/user-attachments/assets/e83f4c60-2d92-4a12-a7ff-5b1bbb048284)
+![image](https://github.com/user-attachments/assets/f9822379-82b5-4fb6-a6d7-c497cf3d309d)
 
 ### Tips and Tricks
 https://github.com/soumith/ganhacks?tab=readme-ov-file#authors
