@@ -1,4 +1,4 @@
-# GAN Models for Image Generation
+# GAN for Image Generation
 
 ### GAN for mnist digits:
 
