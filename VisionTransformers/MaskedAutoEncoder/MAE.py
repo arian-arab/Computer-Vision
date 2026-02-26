@@ -34,38 +34,47 @@ class MAE(nn.Module):
 
         self.reconstruction_head = nn.Linear(embed_dim, patch_size * patch_size)
 
-    # ---------------------------------------------------
-    # Random Masking
-    # ---------------------------------------------------
     def random_masking(self, x):
         B, N, D = x.shape
         len_keep = int(N * (1 - self.mask_ratio))
-
+    
         noise = torch.rand(B, N, device=x.device)
-
+    
+        # sort noise for each sample
         ids_shuffle = torch.argsort(noise, dim=1)
         ids_restore = torch.argsort(ids_shuffle, dim=1)
-
+    
+        # keep first subset
         ids_keep = ids_shuffle[:, :len_keep]
+    
+        # mask: 0 = keep, 1 = remove
+        mask = torch.ones([B, N], device=x.device)
+        mask[:, :len_keep] = 0
+        mask = torch.gather(mask, dim=1, index=ids_restore)
+    
+        # masked input
+        x_masked = torch.gather(
+            x, dim=1,
+            index=ids_keep.unsqueeze(-1).expand(-1, -1, D)
+        )
 
-        x_masked = torch.gather(x, dim=1, index=ids_keep.unsqueeze(-1).expand(-1, -1, D))
-        return x_masked, ids_restore, ids_keep
+        return x_masked, mask, ids_restore
 
     # ---------------------------------------------------
     # Encoder
-    # ---------------------------------------------------
+    # ---------------------------------------------------             
     def encode(self, imgs):
         x = self.patch_embed(imgs)              # (B, N, D)
         x = x + self.encoder_pos_embed
         if self.training:
-            x_masked, ids_restore, ids_keep = self.random_masking(x)
+            x_masked, mask, ids_restore = self.random_masking(x)
         else:
             x_masked = x
-            ids_restore = None
-            ids_keep = None
+            mask = None
+            ids_restore = None   
             
         x_encoded = self.encoder(x_masked)      # batch_first=True
-        return x_encoded, ids_restore, ids_keep
+        return x_encoded, mask, ids_restore
 
     # ---------------------------------------------------
     # Decoder
@@ -93,11 +102,11 @@ class MAE(nn.Module):
 
     # ---------------------------------------------------
     # Forward
-    # ---------------------------------------------------
+    # ---------------------------------------------------    
     def forward(self, imgs):
-        x_encoded, ids_restore, ids_keep = self.encode(imgs)
+        x_encoded, mask, ids_restore = self.encode(imgs)
         pred = self.decode(x_encoded, ids_restore)
-        return pred, x_encoded
+        return pred, x_encoded, mask
     
 # ------------------------
 # Load Datasets
@@ -123,11 +132,16 @@ for epoch in range(n_epochs):
     for imgs, _, _, _ in loader_train:
         imgs = imgs.to(device)
 
-        pred, _ = model(imgs)
+        # pred, _ = model(imgs)
+        pred, z, mask = model(imgs)
 
         # target patches
         patches = imgs.unfold(2,7,7).unfold(3,7,7)
         patches = patches.contiguous().view(imgs.size(0), 16, -1)
+        
+        loss = (pred - patches) ** 2
+        loss = loss.mean(dim=-1)          # mean over feature dimension
+        loss = (loss * mask).sum() / mask.sum()
 
         loss = F.mse_loss(pred, patches)
 
@@ -169,7 +183,7 @@ def visualize_reconstruction(model, loader, device):
     img = img.to(device)
 
     with torch.no_grad():
-        pred, _ = model(img)
+        pred, _, _ = model(img)
 
     recon = patches_to_image(pred.cpu())
     
@@ -186,66 +200,3 @@ def visualize_reconstruction(model, loader, device):
     plt.show()
 
 visualize_reconstruction(model, loader_test, device)
-
-
-# ------------------------
-# Extract Embeddings
-# ------------------------
-model.eval()
-
-all_embeddings = []
-all_labels = []
-
-with torch.no_grad():
-    for imgs, _, labels, _ in loader_test:
-        imgs = imgs.to(device)
-
-        _, x_encoded = model(imgs)
-        features = x_encoded.mean(dim=1)
-
-        all_embeddings.append(features.cpu())
-        all_labels.append(labels)
-
-all_embeddings = torch.cat(all_embeddings, dim=0)
-all_labels = torch.cat(all_labels, dim=0)
-
-print("Train shape:", all_embeddings.shape)
-
-X = all_embeddings.detach().cpu().numpy()
-y_true = all_labels.detach().cpu().numpy()
-
-from sklearn.cluster import KMeans
-kmeans = KMeans(n_clusters=10, random_state=42, n_init=20)
-y_kmeans = kmeans.fit_predict(X)
-
-from sklearn.decomposition import PCA
-pca = PCA(n_components=2)
-X_pca = pca.fit_transform(X)
-
-plt.figure(figsize=(8,6))
-plt.scatter(X_pca[:, 0], X_pca[:, 1], c=y_true, cmap='tab10', s=30)
-plt.title("Ground Truth Labels (PCA projection)")
-plt.colorbar()
-plt.show()
-
-from sklearn.metrics import confusion_matrix
-from scipy.optimize import linear_sum_assignment
-
-# Compute confusion matrix
-cm = confusion_matrix(y_true, y_kmeans)
-
-# Hungarian algorithm to match clusters to labels
-row_ind, col_ind = linear_sum_assignment(-cm)
-
-# Create mapping
-mapping = {col: row for row, col in zip(row_ind, col_ind)}
-
-# Remap cluster labels
-y_kmeans_aligned = np.vectorize(mapping.get)(y_kmeans)
-
-cm_aligned = confusion_matrix(y_true, y_kmeans_aligned)
-print("Confusion Matrix After Alignment:")
-print(cm_aligned)
-
-accuracy = np.trace(cm_aligned) / np.sum(cm_aligned)
-print(f"Clustering Accuracy: {accuracy:.4f}")
